@@ -1,6 +1,5 @@
 # app/parser.py
 from typing import List
-from datetime import datetime
 from bs4 import BeautifulSoup
 from app.models import Review
 import logging
@@ -8,55 +7,58 @@ import logging
 logger = logging.getLogger(__name__)
 
 class ReviewParser:
-    """Парсер HTML страницы отзывов Apple App Store"""
+    """Парсер HTML страницы отзывов Apple App Store."""
 
-    @staticmethod
-    def parse_reviews(html: str) -> List[Review]:
+    def parse_reviews(self, html: str) -> List[Review]:
+        """
+        Преобразует HTML страницу отзывов в список объектов Review.
+
+        Args:
+            html (str): HTML-код страницы отзывов.
+
+        Returns:
+            List[Review]: Список отзывов.
+        """
         soup = BeautifulSoup(html, "html.parser")
         reviews: List[Review] = []
 
-        review_divs = soup.find_all("div", class_="we-customer-review")
-        if not review_divs:
-            logger.warning("Не найдено отзывов на странице")
-            return reviews
+        review_elements = soup.find_all("li", {"class": "svelte-1jsby4n"})
 
-        for div in review_divs:
+        for elem in review_elements:
             try:
-                author_tag = div.find("span", class_="we-truncate we-truncate--single-line")
-                author = author_tag.get_text(strip=True) if author_tag else "Неизвестно"
+                # Автор
+                author_tag = elem.find("p", class_="author")
+                author = author_tag.get_text(strip=True) if author_tag else "Unknown"
 
-                date_tag = div.find("time")
-                date_str = date_tag["datetime"] if date_tag and date_tag.has_attr("datetime") else None
-                date = datetime.fromisoformat(date_str) if date_str else None
+                # Дата
+                date_tag = elem.find("time", class_="date")
+                date = date_tag["datetime"] if date_tag and date_tag.has_attr("datetime") else "Unknown"
 
-                rating_tag = div.find("figure", class_="we-star-rating")
+                # Заголовок
+                title_tag = elem.find("h3", class_="title")
+                title_span = title_tag.find("span", class_="multiline-clamp__text") if title_tag else None
+                title = title_span.get_text(strip=True) if title_span else ""
+
+                # Рейтинг
+                rating_tag = elem.find("ol", class_="stars")
                 rating = 0
                 if rating_tag:
-                    aria_label = rating_tag.get("aria-label")
-                    if aria_label:
-                        try:
-                            rating = int(aria_label.split()[0])
-                        except ValueError:
-                            rating = 0
+                    stars = rating_tag.find_all("li", class_="star")
+                    rating = len(stars)
 
-                title_tag = div.find("h3", class_="we-truncate")
-                title = title_tag.get_text(strip=True) if title_tag else ""
-
-                content_tag = div.find("blockquote")
+                # Текст отзыва
+                content_tag = elem.find("p", class_="content")
                 content = content_tag.get_text(strip=True) if content_tag else ""
 
-                reviews.append(
-                    Review(
-                        author=author,
-                        title=title,
-                        content=content,
-                        rating=rating,
-                        date=date,
-                        version=None
-                    )
+                review = Review(
+                    author=author,
+                    date=date,
+                    title=title,
+                    rating=rating,
+                    content=content
                 )
+                reviews.append(review)
             except Exception as e:
-                logger.error(f"Ошибка парсинга одного отзыва: {e}")
-                continue
+                logger.warning(f"Не удалось распарсить отзыв: {e}")
 
         return reviews
