@@ -2,7 +2,6 @@
 import httpx
 import asyncio
 import logging
-from typing import Optional
 
 logger = logging.getLogger(__name__)
 
@@ -21,19 +20,23 @@ class AsyncHTTPClient:
     async def fetch_reviews(self, app_id: str, region: str = "us") -> str:
         """
         Получает HTML страницу всех отзывов приложения по App ID.
-    
+
         Args:
             app_id (str): ID приложения.
             region (str): Регион App Store (по умолчанию "us").
-    
+
         Returns:
             str: HTML код страницы.
         """
         url = f"{self.BASE_URL}/{region}/app/id{app_id}?see-all=reviews&platform=iphone"
-    
+
         for attempt in range(1, self.max_retries + 1):
             try:
-                async with httpx.AsyncClient(timeout=self.timeout, headers=self.headers, follow_redirects=True) as client:
+                async with httpx.AsyncClient(
+                    timeout=self.timeout,
+                    headers=self.headers,
+                    follow_redirects=True
+                ) as client:
                     response = await client.get(url)
                     if response.status_code == 200:
                         return response.text
@@ -45,6 +48,5 @@ class AsyncHTTPClient:
             except httpx.RequestError as e:
                 logger.warning(f"Попытка {attempt}: ошибка запроса {e}, retrying...")
                 await asyncio.sleep(2 ** attempt)
-    
-        raise RuntimeError(f"Не удалось получить HTML после {self.max_retries} попыток")
 
+        raise RuntimeError(f"Не удалось получить HTML после {self.max_retries} попыток")
