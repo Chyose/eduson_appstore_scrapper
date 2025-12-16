@@ -12,10 +12,15 @@ logger = logging.getLogger(__name__)
 # --- Добавляем корень проекта в PYTHONPATH ---
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 if str(PROJECT_ROOT) not in sys.path:
-    sys.path.append(str(PROJECT_ROOT))
+    sys.path.insert(0, str(PROJECT_ROOT))
 
 # --- Импортируем сервис ---
-from app.service import ReviewService
+try:
+    from app.service import ReviewService
+except ModuleNotFoundError as e:
+    logger.error(f"Не удалось импортировать пакет app: {e}")
+    st.error("Ошибка: пакет app не найден. Проверьте наличие __init__.py в папке app и структуру проекта.")
+    st.stop()
 
 # --- Streamlit UI ---
 st.title("Сбор отзывов из Apple App Store")
