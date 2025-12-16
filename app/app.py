@@ -5,7 +5,7 @@ import logging
 import sys
 from pathlib import Path
 
-from app.service import ReviewService
+from service import ReviewService
 
 
 # Настройка логирования
