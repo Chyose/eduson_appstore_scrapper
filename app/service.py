@@ -1,29 +1,20 @@
-import logging
-from pathlib import Path
-
-from app.client import AsyncHttpClient
-from app.parser import ReviewParser
+# app/service.py
+from typing import List
+from app.client import AsyncHTTPClient
 from app.scraper import AppStoreScraper
-from app.storage import ReviewStorage
+from app.storage import Storage
+from app.models import Review
+import asyncio
 
-logger = logging.getLogger(__name__)
+class ReviewService:
+    """Сервис для UI или других сервисов"""
 
+    def __init__(self):
+        self.client = AsyncHTTPClient()
+        self.scraper = AppStoreScraper(self.client)
 
-class ReviewScrapingService:
-    """
-    Фасад уровня приложения.
-    Удобен для CLI, Streamlit, API.
-    """
-
-    def __init__(self) -> None:
-        self._parser = ReviewParser()
-        self._storage = ReviewStorage()
-
-    async def run(self, app_id: str, output_path: Path) -> None:
-        async with AsyncHttpClient() as http_client:
-            scraper = AppStoreScraper(http_client, self._parser)
-            reviews = await scraper.fetch_reviews(app_id)
-
-        self._storage.save_markdown(reviews, output_path)
-        logger.info("Saved %s reviews to %s", len(reviews), output_path)
-
+    async def get_and_save_reviews(self, app_id: str) -> List[Review]:
+        reviews = await self.scraper.fetch_reviews(app_id)
+        Storage.save_reviews(reviews)
+        await self.client.close()
+        return reviews
