@@ -1,32 +1,41 @@
-from pathlib import Path
+from bs4 import BeautifulSoup
 from typing import List
 from app.models import Review
-import logging
 
-logger = logging.getLogger(__name__)
+class AppStoreParser:
+    """Парсер HTML страницы отзывов App Store"""
 
-class Storage:
-    """Сохраняет отзывы в Markdown"""
+    def parse_reviews(self, html: str) -> List[Review]:
+        reviews: List[Review] = []
+        soup = BeautifulSoup(html, "html.parser")
 
-    OUTPUT_FILE = Path("output/reviews.md")
+        # Находим все элементы отзывов
+        review_elements = soup.find_all("article", class_="svelte-1jsby4n")
 
-    def save_reviews(self, app_name: str, reviews: List[Review]) -> None:
-        if not reviews:
-            logger.warning("Нет валидных отзывов для сохранения")
-            return
+        for el in review_elements:
+            try:
+                author_tag = el.find("p", class_="author")
+                author = author_tag.get_text(strip=True) if author_tag else "Unknown"
 
-        self.OUTPUT_FILE.parent.mkdir(exist_ok=True)
+                date_tag = el.find("time", class_="date")
+                date = date_tag.get("datetime", "").strip() if date_tag else "Unknown"
 
-        with self.OUTPUT_FILE.open("w", encoding="utf-8") as f:
-            f.write(f"# {app_name}\n")
-            f.write(f"Общее количество отзывов: {len(reviews)}\n\n")
+                title_tag = el.find("h3", class_="title")
+                title = title_tag.get_text(strip=True) if title_tag else ""
 
-            for review in reviews:
-                f.write("---\n")
-                f.write(f"### {'⭐'*review.rating}{'☆'*(5-review.rating)}\n")
-                f.write(f"**Автор:** {review.author}\n")
-                f.write(f"**Дата:** {review.date}\n")
-                f.write(f"**Заголовок:** {review.title}\n")
-                f.write(f"**Текст:**\n{review.content}\n\n")
+                content_tag = el.find("p", class_="content")
+                content = content_tag.get_text(strip=True) if content_tag else ""
 
-        logger.info(f"Сохранено {len(reviews)} отзывов в {self.OUTPUT_FILE}")
+                rating_tag = el.find("ol", class_="stars")
+                rating = len(rating_tag.find_all("li", class_="star")) if rating_tag else 0
+
+                review = Review(author=author, date=date, title=title, content=content, rating=rating)
+
+                if review.is_valid():
+                    reviews.append(review)
+
+            except Exception:
+                # Игнорируем отдельные некорректные элементы
+                continue
+
+        return reviews
