@@ -1,39 +1,19 @@
-import logging
+# app/scraper.py
 from typing import List
-
-from app.client import AsyncHttpClient
-from app.config import APPSTORE_CONFIG
-from app.models import Review
+from app.client import AsyncHTTPClient
 from app.parser import ReviewParser
-
-logger = logging.getLogger(__name__)
-
+from app.models import Review
 
 class AppStoreScraper:
-    """
-    Оркестратор процесса скрапинга.
-    Не знает ничего о хранении и UI.
-    """
+    """Скрапинг отзывов приложения по ID"""
 
-    def __init__(
-        self,
-        http_client: AsyncHttpClient,
-        parser: ReviewParser,
-    ) -> None:
-        self._http_client = http_client
-        self._parser = parser
+    BASE_URL = "https://apps.apple.com/us/app"
 
-    def _build_reviews_url(self, app_id: str) -> str:
-        return (
-            f"{APPSTORE_CONFIG.base_url}/"
-            f"{APPSTORE_CONFIG.country}/app/id{app_id}"
-            f"?see-all=reviews&platform={APPSTORE_CONFIG.platform}"
-        )
+    def __init__(self, client: AsyncHTTPClient):
+        self.client = client
 
     async def fetch_reviews(self, app_id: str) -> List[Review]:
-        url = self._build_reviews_url(app_id)
-        logger.info("Fetching reviews from %s", url)
-
-        response = await self._http_client.get(url)
-        return self._parser.parse_reviews(response.text)
-
+        url = f"{self.BASE_URL}/id{app_id}?see-all=reviews&platform=iphone"
+        html = await self.client.get(url)
+        reviews = ReviewParser.parse_reviews(html)
+        return reviews
