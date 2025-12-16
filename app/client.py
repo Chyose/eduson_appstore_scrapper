@@ -19,31 +19,32 @@ class AsyncHTTPClient:
         }
 
     async def fetch_reviews(self, app_id: str, region: str = "us") -> str:
-        """
-        Получает HTML страницу всех отзывов приложения по App ID.
+    """
+    Получает HTML страницу всех отзывов приложения по App ID.
 
-        Args:
-            app_id (str): ID приложения.
-            region (str): Регион App Store (по умолчанию "us").
+    Args:
+        app_id (str): ID приложения.
+        region (str): Регион App Store (по умолчанию "us").
 
-        Returns:
-            str: HTML код страницы.
-        """
-        url = f"{self.BASE_URL}/{region}/app/id{app_id}?see-all=reviews&platform=iphone"
+    Returns:
+        str: HTML код страницы.
+    """
+    url = f"{self.BASE_URL}/{region}/app/id{app_id}?see-all=reviews&platform=iphone"
 
-        for attempt in range(1, self.max_retries + 1):
-            try:
-                async with httpx.AsyncClient(timeout=self.timeout, headers=self.headers) as client:
-                    response = await client.get(url)
-                    if response.status_code == 200:
-                        return response.text
-                    elif response.status_code in {429, 500, 502, 503, 504}:
-                        logger.warning(f"Попытка {attempt}: сервер вернул {response.status_code}, retrying...")
-                        await asyncio.sleep(2 ** attempt)
-                    else:
-                        response.raise_for_status()
-            except httpx.RequestError as e:
-                logger.warning(f"Попытка {attempt}: ошибка запроса {e}, retrying...")
-                await asyncio.sleep(2 ** attempt)
+    for attempt in range(1, self.max_retries + 1):
+        try:
+            async with httpx.AsyncClient(timeout=self.timeout, headers=self.headers, follow_redirects=True) as client:
+                response = await client.get(url)
+                if response.status_code == 200:
+                    return response.text
+                elif response.status_code in {429, 500, 502, 503, 504}:
+                    logger.warning(f"Попытка {attempt}: сервер вернул {response.status_code}, retrying...")
+                    await asyncio.sleep(2 ** attempt)
+                else:
+                    response.raise_for_status()
+        except httpx.RequestError as e:
+            logger.warning(f"Попытка {attempt}: ошибка запроса {e}, retrying...")
+            await asyncio.sleep(2 ** attempt)
 
-        raise RuntimeError(f"Не удалось получить HTML после {self.max_retries} попыток")
+    raise RuntimeError(f"Не удалось получить HTML после {self.max_retries} попыток")
+
