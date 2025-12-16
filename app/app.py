@@ -7,11 +7,6 @@ from pathlib import Path
 
 from app.service import ReviewService
 
-# Добавляем корень проекта в PYTHONPATH
-sys.path.append(str(Path(__file__).resolve().parent.parent))
-
-from app.service import ReviewService
-
 
 # Настройка логирования
 logging.basicConfig(level=logging.INFO)
