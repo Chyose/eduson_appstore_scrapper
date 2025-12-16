@@ -3,8 +3,8 @@ from pathlib import Path
 import asyncio
 import streamlit as st
 
-# Добавляем корень проекта в PYTHONPATH для корректного импорта пакета app
-sys.path.append(str(Path(__file__).resolve().parent.parent))
+# Добавляем корневую папку проекта в PYTHONPATH, чтобы импорты пакета app работали
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from app.service import ReviewService
 
@@ -24,6 +24,7 @@ if st.button("Собрать отзывы"):
         async def fetch_reviews(app_id: str):
             service = ReviewService()
             try:
+                # Асинхронно получаем и сохраняем отзывы
                 reviews = await service.get_and_save_reviews(app_id)
                 if not reviews:
                     status_text.warning("Отзывы не найдены")
@@ -36,10 +37,10 @@ if st.button("Собрать отзывы"):
                 status_text.error(f"Ошибка при сборе отзывов: {e}")
                 return None
 
-        # Асинхронный вызов
+        # Запуск асинхронной функции
         file_path = asyncio.run(fetch_reviews(app_id))
 
-        # Кнопка для скачивания файла
+        # Кнопка для скачивания файла с отзывами
         if file_path and file_path.exists():
             with open(file_path, "rb") as f:
                 st.download_button(
