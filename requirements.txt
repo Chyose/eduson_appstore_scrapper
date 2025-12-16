@@ -1,1 +1,14 @@
+# Асинхронный HTTP клиент
+httpx>=0.25.0
+
+# HTML парсинг
+beautifulsoup4>=4.12.2
+
+# Streamlit UI
+streamlit>=1.30.0
+
+# Для работы с типами и аннотациями (Python 3.11+)
+typing-extensions>=4.7.1
+
+# Логирование (встроено в Python, добавлено для совместимости)
 
