@@ -15,15 +15,21 @@ class ReviewService:
         self.parser = AppStoreParser()
         self.storage = Storage()
 
-    async def get_reviews(self, app_id: str) -> List[Review]:
-        url = f"https://apps.apple.com/us/app/id{app_id}?see-all=reviews&platform=iphone"
-        html = await self.client.fetch_reviews(url)  # <-- используем fetch вместо get
+    async def get_reviews(self, app_id: str, region: str = "us") -> List[Review]:
+        """
+        Получение отзывов по App ID.
+
+        Args:
+            app_id (str): ID приложения
+            region (str): Регион App Store (по умолчанию "us")
+        """
+        html = await self.client.fetch_reviews(app_id, region)  # Передаем только ID
         reviews = self.parser.parse_reviews(html)
         logger.info(f"Найдено {len(reviews)} валидных отзывов для App ID {app_id}")
         return reviews
 
-    async def get_and_save_reviews(self, app_id: str) -> List[Review]:
-        reviews = await self.get_reviews(app_id)
+    async def get_and_save_reviews(self, app_id: str, region: str = "us") -> List[Review]:
+        reviews = await self.get_reviews(app_id, region)
         if reviews:
             self.storage.save_reviews(f"App {app_id}", reviews)
         return reviews
