@@ -1,7 +1,12 @@
-import streamlit as st
-import asyncio
-from app.service import ReviewService
+import sys
 from pathlib import Path
+import asyncio
+import streamlit as st
+
+# Добавляем корень проекта в PYTHONPATH для корректного импорта пакета app
+sys.path.append(str(Path(__file__).resolve().parent.parent))
+
+from app.service import ReviewService
 
 st.set_page_config(page_title="App Store Reviews", layout="centered")
 
@@ -25,17 +30,16 @@ if st.button("Собрать отзывы"):
                     return None
                 else:
                     status_text.success(f"Найдено {len(reviews)} отзывов")
-                    # Путь к файлу
                     file_path = Path("output/reviews.md")
                     return file_path
             except Exception as e:
                 status_text.error(f"Ошибка при сборе отзывов: {e}")
                 return None
 
-        # Запускаем асинхронно
+        # Асинхронный вызов
         file_path = asyncio.run(fetch_reviews(app_id))
 
-        # Предлагаем скачать файл
+        # Кнопка для скачивания файла
         if file_path and file_path.exists():
             with open(file_path, "rb") as f:
                 st.download_button(
