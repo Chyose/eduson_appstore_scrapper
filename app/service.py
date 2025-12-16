@@ -17,7 +17,7 @@ class ReviewService:
 
     async def get_reviews(self, app_id: str) -> List[Review]:
         url = f"https://apps.apple.com/us/app/id{app_id}?see-all=reviews&platform=iphone"
-        html = await self.client.get(url)
+        html = await self.client.fetch(url)  # <-- используем fetch вместо get
         reviews = self.parser.parse_reviews(html)
         logger.info(f"Найдено {len(reviews)} валидных отзывов для App ID {app_id}")
         return reviews
