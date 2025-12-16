@@ -1,69 +1,34 @@
+# app/client.py
 import asyncio
 import logging
 from typing import Optional
 
 import httpx
-
-from app.config import HTTP_CONFIG
+from app.config import TIMEOUT, MAX_RETRIES, BACKOFF_FACTOR, HEADERS
 
 logger = logging.getLogger(__name__)
 
+class AsyncHTTPClient:
+    """Асинхронный HTTP клиент с retry, таймаутами и exponential backoff"""
 
-class AsyncHttpClient:
-    """
-    Асинхронный HTTP-клиент с retry, backoff и таймаутами.
-    Вся retry-логика инкапсулирована здесь.
-    """
+    def __init__(self):
+        self.client = httpx.AsyncClient(timeout=TIMEOUT, headers=HEADERS)
 
-    def __init__(self) -> None:
-        self._client: Optional[httpx.AsyncClient] = None
-
-    async def __aenter__(self) -> "AsyncHttpClient":
-        self._client = httpx.AsyncClient(
-            timeout=httpx.Timeout(HTTP_CONFIG.timeout),
-            headers={"User-Agent": HTTP_CONFIG.user_agent},
-            follow_redirects=True,
-        )
-        return self
-
-    async def __aexit__(self, exc_type, exc, tb) -> None:
-        if self._client:
-            await self._client.aclose()
-
-    async def get(self, url: str) -> httpx.Response:
-        assert self._client is not None, "HTTP client not initialized"
-
-        last_exc: Optional[Exception] = None
-
-        for attempt in range(1, HTTP_CONFIG.max_retries + 1):
+    async def get(self, url: str, params: Optional[dict] = None) -> str:
+        for attempt in range(1, MAX_RETRIES + 1):
             try:
-                response = await self._client.get(url)
-
-                if response.status_code < 400:
-                    return response
-
+                response = await self.client.get(url, params=params)
                 if response.status_code in {429, 500, 502, 503, 504}:
                     raise httpx.HTTPStatusError(
-                        f"Retryable status {response.status_code}",
-                        request=response.request,
-                        response=response,
+                        f"Server error: {response.status_code}", request=response.request, response=response
                     )
-
-                response.raise_for_status()
-
-            except (httpx.HTTPError, asyncio.TimeoutError) as exc:
-                last_exc = exc
-                backoff = HTTP_CONFIG.backoff_factor * (2 ** (attempt - 1))
-                logger.warning(
-                    "HTTP retry %s/%s for %s (sleep %.2fs): %s",
-                    attempt,
-                    HTTP_CONFIG.max_retries,
-                    url,
-                    backoff,
-                    exc,
-                )
-                await asyncio.sleep(backoff)
-
-        logger.error("HTTP request failed after retries: %s", url)
-        raise RuntimeError("HTTP request failed") from last_exc
-
+                return response.text
+            except (httpx.RequestError, httpx.HTTPStatusError) as e:
+                wait_time = BACKOFF_FACTOR ** attempt
+                logger.warning(f"Попытка {attempt}/{MAX_RETRIES} не удалась: {e}. Ждем {wait_time:.1f} сек")
+                await asyncio.sleep(wait_time)
+        logger.error(f"Не удалось получить данные с {url} после {MAX_RETRIES} попыток")
+        raise RuntimeError(f"Не удалось получить данные с {url}")
+    
+    async def close(self):
+        await self.client.aclose()
