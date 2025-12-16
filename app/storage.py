@@ -1,43 +1,32 @@
-# app/storage.py
+from pathlib import Path
 from typing import List
 from app.models import Review
-from pathlib import Path
 import logging
 
 logger = logging.getLogger(__name__)
 
 class Storage:
-    """Сохраняет отзывы в Markdown файл."""
+    """Сохраняет отзывы в Markdown"""
 
-    def __init__(self, output_path: str = "output/reviews.md"):
-        self.output_path = Path(output_path)
-        self.output_path.parent.mkdir(parents=True, exist_ok=True)
+    OUTPUT_FILE = Path("output/reviews.md")
 
-    def save_reviews(self, app_id: str, reviews: List[Review]):
-        """Сохраняет список отзывов в Markdown файл."""
+    def save_reviews(self, app_name: str, reviews: List[Review]) -> None:
         if not reviews:
-            logger.warning(f"Нет отзывов для сохранения по приложению {app_id}")
+            logger.warning("Нет валидных отзывов для сохранения")
             return
 
-        app_title = reviews[0].title or f"App {app_id}"
-        md_lines = [
-            f"# Отзывы для {app_title}\n",
-            f"Общее количество отзывов: {len(reviews)}\n"
-        ]
+        self.OUTPUT_FILE.parent.mkdir(exist_ok=True)
 
-        for review in reviews:
-            stars = "⭐" * review.rating + "☆" * (5 - review.rating)
-            md_lines.extend([
-                "---",
-                f"### {stars}",
-                f"**Автор:** {review.author}",
-                f"**Дата:** {review.date}",
-                f"**Заголовок:** {review.title}",
-                f"**Текст:**\n{review.content}\n"
-            ])
+        with self.OUTPUT_FILE.open("w", encoding="utf-8") as f:
+            f.write(f"# {app_name}\n")
+            f.write(f"Общее количество отзывов: {len(reviews)}\n\n")
 
-        try:
-            self.output_path.write_text("\n".join(md_lines), encoding="utf-8")
-            logger.info(f"Отзывы сохранены в {self.output_path}")
-        except Exception as e:
-            logger.error(f"Не удалось сохранить отзывы: {e}")
+            for review in reviews:
+                f.write("---\n")
+                f.write(f"### {'⭐'*review.rating}{'☆'*(5-review.rating)}\n")
+                f.write(f"**Автор:** {review.author}\n")
+                f.write(f"**Дата:** {review.date}\n")
+                f.write(f"**Заголовок:** {review.title}\n")
+                f.write(f"**Текст:**\n{review.content}\n\n")
+
+        logger.info(f"Сохранено {len(reviews)} отзывов в {self.OUTPUT_FILE}")
