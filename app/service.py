@@ -10,15 +10,7 @@ class ReviewService:
     """Сервис для получения и сохранения отзывов App Store."""
 
     async def get_and_save_reviews(self, app_id: str):
-        """
-        Получает HTML с отзывами, парсит и сохраняет их в Markdown.
-
-        Args:
-            app_id (str): ID приложения App Store.
-
-        Returns:
-            List[Review]: Список отзывов.
-        """
+        """Получает HTML, парсит отзывы и сохраняет их в Markdown."""
         client = AsyncHTTPClient()
         try:
             html = await client.fetch_reviews(app_id)
