@@ -1,21 +1,43 @@
 # app/storage.py
+from pathlib import Path
 from typing import List
 from app.models import Review
-from pathlib import Path
-import datetime
+import logging
+
+logger = logging.getLogger(__name__)
 
 class Storage:
-    """Сохранение и загрузка отзывов"""
+    """Сохранение отзывов в Markdown файл"""
 
     OUTPUT_FILE = Path("output/reviews.md")
 
     @staticmethod
-    def save_reviews(reviews: List[Review]):
+    def save_reviews_md(app_name: str, reviews: List[Review]) -> None:
+        """
+        Сохраняет список отзывов в человекочитаемый Markdown файл
+
+        Args:
+            app_name (str): название приложения
+            reviews (List[Review]): список отзывов
+        """
         Storage.OUTPUT_FILE.parent.mkdir(parents=True, exist_ok=True)
-        with Storage.OUTPUT_FILE.open("w", encoding="utf-8") as f:
-            for review in reviews:
-                f.write(f"### {review.title} ({review.rating}⭐)\n")
-                f.write(f"Автор: {review.author}\n")
-                f.write(f"Дата: {review.date.strftime('%Y-%m-%d')}\n")
-                f.write(f"Версия: {review.version or '—'}\n")
-                f.write(f"{review.content}\n\n")
+
+        try:
+            with Storage.OUTPUT_FILE.open("w", encoding="utf-8") as f:
+                # Заголовок с названием приложения
+                f.write(f"# Отзывы приложения: {app_name}\n")
+                f.write(f"Общее количество отзывов: {len(reviews)}\n\n")
+
+                for review in reviews:
+                    # Заголовок с рейтингом
+                    stars = "⭐" * review.rating + "☆" * (5 - review.rating)
+                    f.write("---\n")
+                    f.write(f"### {stars}\n")
+                    f.write(f"**Автор:** {review.author}\n")
+                    f.write(f"**Дата:** {review.date.strftime('%Y-%m-%d') if review.date else 'Неизвестно'}\n")
+                    f.write("**Текст:**\n")
+                    f.write(f"{review.content}\n\n")
+
+            logger.info(f"Отзывы успешно сохранены в {Storage.OUTPUT_FILE}")
+        except Exception as e:
+            logger.error(f"Ошибка при сохранении отзывов: {e}")
