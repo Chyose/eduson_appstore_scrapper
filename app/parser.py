@@ -22,42 +22,40 @@ class ReviewParser:
         soup = BeautifulSoup(html, "html.parser")
         reviews: List[Review] = []
 
-        review_elements = soup.find_all("li", {"class": "svelte-1jsby4n"})
+        # Все <li> внутри секции отзывов
+        review_elements = soup.select("section ul li")
 
         for elem in review_elements:
             try:
                 # Автор
-                author_tag = elem.find("p", class_="author")
+                author_tag = elem.select_one("p.author")
                 author = author_tag.get_text(strip=True) if author_tag else "Unknown"
 
                 # Дата
-                date_tag = elem.find("time", class_="date")
+                date_tag = elem.select_one("time.date")
                 date = date_tag["datetime"] if date_tag and date_tag.has_attr("datetime") else "Unknown"
 
                 # Заголовок
-                title_tag = elem.find("h3", class_="title")
-                title_span = title_tag.find("span", class_="multiline-clamp__text") if title_tag else None
-                title = title_span.get_text(strip=True) if title_span else ""
+                title_tag = elem.select_one("h3.title span.multiline-clamp__text")
+                title = title_tag.get_text(strip=True) if title_tag else ""
 
                 # Рейтинг
-                rating_tag = elem.find("ol", class_="stars")
-                rating = 0
-                if rating_tag:
-                    stars = rating_tag.find_all("li", class_="star")
-                    rating = len(stars)
+                rating_tag = elem.select_one("ol.stars")
+                rating = len(rating_tag.select("li.star")) if rating_tag else 0
 
                 # Текст отзыва
-                content_tag = elem.find("p", class_="content")
+                content_tag = elem.select_one("p.content")
                 content = content_tag.get_text(strip=True) if content_tag else ""
 
-                review = Review(
-                    author=author,
-                    date=date,
-                    title=title,
-                    rating=rating,
-                    content=content
+                reviews.append(
+                    Review(
+                        author=author,
+                        date=date,
+                        title=title,
+                        rating=rating,
+                        content=content
+                    )
                 )
-                reviews.append(review)
             except Exception as e:
                 logger.warning(f"Не удалось распарсить отзыв: {e}")
 
