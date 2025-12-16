@@ -1,39 +1,49 @@
 # app/client.py
+import httpx
 import asyncio
 import logging
 from typing import Optional
 
-import httpx
-from app.config import TIMEOUT, MAX_RETRIES, BACKOFF_FACTOR, HEADERS, RETRY_STATUS_CODES
-
 logger = logging.getLogger(__name__)
 
 class AsyncHTTPClient:
-    """Асинхронный HTTP клиент с retry и exponential backoff"""
+    """Асинхронный HTTP клиент с retry и таймаутами для App Store."""
 
-    def __init__(self) -> None:
-        self.client = httpx.AsyncClient(timeout=TIMEOUT, headers=HEADERS)
+    BASE_URL = "https://apps.apple.com"
 
-    async def get(self, url: str, params: Optional[dict] = None) -> str:
-        for attempt in range(1, MAX_RETRIES + 1):
+    def __init__(self, timeout: float = 10.0, max_retries: int = 3):
+        self.timeout = timeout
+        self.max_retries = max_retries
+        self.headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
+        }
+
+    async def fetch_reviews(self, app_id: str, region: str = "us") -> str:
+        """
+        Получает HTML страницу всех отзывов приложения по App ID.
+
+        Args:
+            app_id (str): ID приложения.
+            region (str): Регион App Store (по умолчанию "us").
+
+        Returns:
+            str: HTML код страницы.
+        """
+        url = f"{self.BASE_URL}/{region}/app/id{app_id}?see-all=reviews&platform=iphone"
+
+        for attempt in range(1, self.max_retries + 1):
             try:
-                response = await self.client.get(url, params=params)
-                if response.status_code in RETRY_STATUS_CODES:
-                    raise httpx.HTTPStatusError(
-                        f"Server error: {response.status_code}",
-                        request=response.request,
-                        response=response
-                    )
-                return response.text
-            except (httpx.RequestError, httpx.HTTPStatusError) as e:
-                wait_time = BACKOFF_FACTOR ** attempt
-                logger.warning(
-                    f"[HTTP GET] Попытка {attempt}/{MAX_RETRIES} для {url} не удалась: {e}. "
-                    f"Ждем {wait_time:.1f} сек"
-                )
-                await asyncio.sleep(wait_time)
-        logger.error(f"[HTTP GET] Не удалось получить данные с {url} после {MAX_RETRIES} попыток")
-        raise RuntimeError(f"Не удалось получить данные с {url}")
+                async with httpx.AsyncClient(timeout=self.timeout, headers=self.headers) as client:
+                    response = await client.get(url)
+                    if response.status_code == 200:
+                        return response.text
+                    elif response.status_code in {429, 500, 502, 503, 504}:
+                        logger.warning(f"Попытка {attempt}: сервер вернул {response.status_code}, retrying...")
+                        await asyncio.sleep(2 ** attempt)
+                    else:
+                        response.raise_for_status()
+            except httpx.RequestError as e:
+                logger.warning(f"Попытка {attempt}: ошибка запроса {e}, retrying...")
+                await asyncio.sleep(2 ** attempt)
 
-    async def close(self) -> None:
-        await self.client.aclose()
+        raise RuntimeError(f"Не удалось получить HTML после {self.max_retries} попыток")
