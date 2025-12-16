@@ -1,29 +1,36 @@
 # app/service.py
-from typing import List
 from app.client import AsyncHTTPClient
-from app.scraper import AppStoreScraper
+from app.parser import ReviewParser
 from app.storage import Storage
-from app.models import Review
-import asyncio
 import logging
 
 logger = logging.getLogger(__name__)
 
 class ReviewService:
-    """Сервис для UI или других сервисов"""
+    """Сервис для получения и сохранения отзывов App Store."""
 
-    def __init__(self) -> None:
-        self.client = AsyncHTTPClient()
-        self.scraper = AppStoreScraper(self.client)
+    async def get_and_save_reviews(self, app_id: str):
+        """
+        Получает HTML с отзывами, парсит и сохраняет их в Markdown.
 
-    async def get_and_save_reviews(self, app_id: str, app_name: str = "") -> List[Review]:
-        reviews: List[Review] = []
+        Args:
+            app_id (str): ID приложения App Store.
+
+        Returns:
+            List[Review]: Список отзывов.
+        """
+        client = AsyncHTTPClient()
         try:
-            reviews = await self.scraper.fetch_reviews(app_id)
-            Storage.save_reviews_md(app_name or app_id, reviews)
+            html = await client.fetch_reviews(app_id)
         except Exception as e:
-            logger.error(f"Ошибка при сборе/сохранении отзывов: {e}")
+            logger.error(f"Ошибка при получении HTML: {e}")
             raise
-        finally:
-            await self.client.close()
+
+        parser = ReviewParser()
+        reviews = parser.parse_reviews(html)
+
+        if not reviews:
+            logger.warning(f"Отзывы для приложения {app_id} не найдены.")
+
+        Storage().save_reviews(app_id, reviews)
         return reviews
