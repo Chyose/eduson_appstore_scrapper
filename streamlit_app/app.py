@@ -5,7 +5,7 @@ import asyncio
 import logging
 import streamlit as st
 
-# --- Настройка логирования ---
+# --- Логирование ---
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
@@ -14,7 +14,7 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-# --- Импортируем сервис ---
+# --- Импорт сервиса ---
 try:
     from app.service import ReviewService
 except ModuleNotFoundError as e:
@@ -42,5 +42,4 @@ if st.button("Собрать отзывы"):
                 logger.error(f"Ошибка при сборе отзывов: {e}")
                 st.error(f"Ошибка: {e}")
 
-        # Запуск асинхронной функции
         asyncio.run(run_scraping(app_id))
