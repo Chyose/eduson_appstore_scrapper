@@ -3,8 +3,9 @@ from dataclasses import dataclass
 
 @dataclass
 class Review:
+    """DTO для одного отзыва App Store."""
     author: str
     date: str
-    title: str  # заголовок отзыва
+    title: str
     rating: int
     content: str
