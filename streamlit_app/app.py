@@ -1,45 +1,46 @@
-# streamlit_app/app.py
-import sys
-from pathlib import Path
-import asyncio
-import logging
 import streamlit as st
+import asyncio
+from app.service import ReviewService
+from pathlib import Path
 
-# --- Логирование ---
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+st.set_page_config(page_title="App Store Reviews", layout="centered")
 
-# --- Добавляем корень проекта в PYTHONPATH ---
-PROJECT_ROOT = Path(__file__).resolve().parent.parent
-if str(PROJECT_ROOT) not in sys.path:
-    sys.path.insert(0, str(PROJECT_ROOT))
+st.title("Сбор отзывов из App Store")
 
-# --- Импорт сервиса ---
-try:
-    from app.service import ReviewService
-except ModuleNotFoundError as e:
-    logger.error(f"Не удалось импортировать пакет app: {e}")
-    st.error("Ошибка: пакет app не найден. Проверьте наличие __init__.py в папке app и структуру проекта.")
-    st.stop()
-
-# --- Streamlit UI ---
-st.title("Сбор отзывов из Apple App Store")
-
-app_id = st.text_input("Введите App ID приложения", "")
+app_id = st.text_input("Введите App ID приложения", value="570060128")
 
 if st.button("Собрать отзывы"):
     if not app_id.strip():
-        st.warning("Пожалуйста, введите корректный App ID")
+        st.warning("App ID не может быть пустым")
     else:
-        st.info("Сбор отзывов запущен...")
+        status_text = st.empty()
+        status_text.info("Сбор отзывов...")
 
-        async def run_scraping(app_id_input: str):
+        async def fetch_reviews(app_id: str):
             service = ReviewService()
             try:
-                reviews = await service.get_and_save_reviews(app_id_input)
-                st.success(f"Собрано {len(reviews)} отзывов. Они сохранены в output/reviews.md")
+                reviews = await service.get_and_save_reviews(app_id)
+                if not reviews:
+                    status_text.warning("Отзывы не найдены")
+                    return None
+                else:
+                    status_text.success(f"Найдено {len(reviews)} отзывов")
+                    # Путь к файлу
+                    file_path = Path("output/reviews.md")
+                    return file_path
             except Exception as e:
-                logger.error(f"Ошибка при сборе отзывов: {e}")
-                st.error(f"Ошибка: {e}")
+                status_text.error(f"Ошибка при сборе отзывов: {e}")
+                return None
 
-        asyncio.run(run_scraping(app_id))
+        # Запускаем асинхронно
+        file_path = asyncio.run(fetch_reviews(app_id))
+
+        # Предлагаем скачать файл
+        if file_path and file_path.exists():
+            with open(file_path, "rb") as f:
+                st.download_button(
+                    label="Скачать файл с отзывами",
+                    data=f,
+                    file_name=file_path.name,
+                    mime="text/markdown"
+                )
