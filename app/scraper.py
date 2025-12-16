@@ -9,11 +9,10 @@ class AppStoreScraper:
 
     BASE_URL = "https://apps.apple.com/us/app"
 
-    def __init__(self, client: AsyncHTTPClient):
+    def __init__(self, client: AsyncHTTPClient) -> None:
         self.client = client
 
     async def fetch_reviews(self, app_id: str) -> List[Review]:
         url = f"{self.BASE_URL}/id{app_id}?see-all=reviews&platform=iphone"
         html = await self.client.get(url)
-        reviews = ReviewParser.parse_reviews(html)
-        return reviews
+        return ReviewParser.parse_reviews(html)
