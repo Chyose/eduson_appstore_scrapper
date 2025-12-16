@@ -1,62 +1,32 @@
-# app/parser.py
+from pathlib import Path
 from typing import List
-from bs4 import BeautifulSoup
 from app.models import Review
 import logging
 
 logger = logging.getLogger(__name__)
 
-class ReviewParser:
-    """Парсер HTML страницы отзывов Apple App Store."""
+class Storage:
+    """Сохраняет отзывы в Markdown"""
 
-    def parse_reviews(self, html: str) -> List[Review]:
-        """
-        Преобразует HTML страницу отзывов в список объектов Review.
+    OUTPUT_FILE = Path("output/reviews.md")
 
-        Args:
-            html (str): HTML-код страницы отзывов.
+    def save_reviews(self, app_name: str, reviews: List[Review]) -> None:
+        if not reviews:
+            logger.warning("Нет валидных отзывов для сохранения")
+            return
 
-        Returns:
-            List[Review]: Список отзывов.
-        """
-        soup = BeautifulSoup(html, "html.parser")
-        reviews: List[Review] = []
+        self.OUTPUT_FILE.parent.mkdir(exist_ok=True)
 
-        # Все <li> внутри секции отзывов
-        review_elements = soup.select("section ul li")
+        with self.OUTPUT_FILE.open("w", encoding="utf-8") as f:
+            f.write(f"# {app_name}\n")
+            f.write(f"Общее количество отзывов: {len(reviews)}\n\n")
 
-        for elem in review_elements:
-            try:
-                # Автор
-                author_tag = elem.select_one("p.author")
-                author = author_tag.get_text(strip=True) if author_tag else "Unknown"
+            for review in reviews:
+                f.write("---\n")
+                f.write(f"### {'⭐'*review.rating}{'☆'*(5-review.rating)}\n")
+                f.write(f"**Автор:** {review.author}\n")
+                f.write(f"**Дата:** {review.date}\n")
+                f.write(f"**Заголовок:** {review.title}\n")
+                f.write(f"**Текст:**\n{review.content}\n\n")
 
-                # Дата
-                date_tag = elem.select_one("time.date")
-                date = date_tag["datetime"] if date_tag and date_tag.has_attr("datetime") else "Unknown"
-
-                # Заголовок
-                title_tag = elem.select_one("h3.title span.multiline-clamp__text")
-                title = title_tag.get_text(strip=True) if title_tag else ""
-
-                # Рейтинг
-                rating_tag = elem.select_one("ol.stars")
-                rating = len(rating_tag.select("li.star")) if rating_tag else 0
-
-                # Текст отзыва
-                content_tag = elem.select_one("p.content")
-                content = content_tag.get_text(strip=True) if content_tag else ""
-
-                reviews.append(
-                    Review(
-                        author=author,
-                        date=date,
-                        title=title,
-                        rating=rating,
-                        content=content
-                    )
-                )
-            except Exception as e:
-                logger.warning(f"Не удалось распарсить отзыв: {e}")
-
-        return reviews
+        logger.info(f"Сохранено {len(reviews)} отзывов в {self.OUTPUT_FILE}")
